@@ -35,7 +35,7 @@ class IFacialMocapData:
 	## @param: name: String - The name of the blendshape
 	## @param: value: String - The value of the blendshape as a String from 0-100
 	func set_blend_shape(name: String, value: String) -> void:
-		blend_shapes[name] = value.to_float() / 100.0
+		blend_shapes[name.replace("_L", "Left").replace("_R", "Right")] = clamp(value.to_float() / 100.0, -1.0, 1.0)
 	
 	func set_head_rotation(x: String, y: String, z: String) -> void:
 		head_rotation.x = -x.to_float()
@@ -211,7 +211,7 @@ func set_offsets() -> void:
 func has_data() -> bool:
 	return ifm_data.has_data
 
-func apply(interpolation_data: InterpolationData, _model: PuppetTrait) -> void:
+func apply(interpolation_data: InterpolationData, model: PuppetTrait) -> void:
 	interpolation_data.bone_translation.target_value = ifm_data.head_position
 	interpolation_data.bone_rotation.target_value = ifm_data.head_rotation
 	
@@ -221,9 +221,6 @@ func apply(interpolation_data: InterpolationData, _model: PuppetTrait) -> void:
 	interpolation_data.left_blink.target_value = 1.0 - ifm_data.blend_shapes.get("eyeBlink_R", 0.0)
 	interpolation_data.right_blink.target_value = 1.0 - ifm_data.blend_shapes.get("eyeBlink_L", 0.0)
 
-	# TODO figure out which to use: mouthClose/jawOpen
-	# jawOpen seems to correspond to the correct values, but then
-	# what does mouthClose refer to?
-	interpolation_data.mouth_open.target_value = ifm_data.blend_shapes.get("jawOpen", 1.0)
-	interpolation_data.mouth_wide.target_value = \
-		ifm_data.blend_shapes.get("mouthLeft", 0.0) + ifm_data.blend_shapes.get("mouthRight", 0.0)
+	for key in ifm_data.blend_shapes.keys():
+		for mesh_instance in model.skeleton.get_children():
+			mesh_instance.set("blend_shapes/%s" % key, ifm_data.blend_shapes[key])

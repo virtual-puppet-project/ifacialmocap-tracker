@@ -146,7 +146,7 @@ func _on_toggle_tracking(button: Button) -> void:
 	var tracker: TrackingBackendTrait
 	var found := false
 	for i in trackers.values():
-		if i is TrackingBackendTrait and i.get_name() == "iFacialMocap":
+		if i is TrackingBackendTrait and i.get_name() == tr("I_FACIAL_MOCAP_TRACKER_NAME"):
 			tracker = i
 			found = true
 			break
@@ -172,7 +172,7 @@ func _on_toggle_tracking(button: Button) -> void:
 
 		button.text = tr("I_FACIAL_MOCAP_TOGGLE_TRACKING_BUTTON_STOP")
 	
-	AM.ps.publish(Globals.TRACKER_TOGGLED, not found, "iFacialMocap")
+	AM.ps.publish(Globals.TRACKER_TOGGLED, not found, tr("I_FACIAL_MOCAP_TRACKER_NAME"))
 
 func _advanced_options() -> VBoxContainer:
 	var vbox := VBoxContainer.new()

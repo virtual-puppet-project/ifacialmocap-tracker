@@ -38,24 +38,16 @@ class IFacialMocapData:
 		blend_shapes[name.replace("_L", "Left").replace("_R", "Right")] = clamp(value.to_float() / 100.0, -1.0, 1.0)
 	
 	func set_head_rotation(x: String, y: String, z: String) -> void:
-		head_rotation.x = -x.to_float()
-		head_rotation.y = -y.to_float()
-		head_rotation.z = z.to_float()
+		head_rotation = Vector3(x.to_float(),y.to_float(), -z.to_float())
 	
 	func set_head_position(x: String, y: String, z: String) -> void:
-		head_position.x = x.to_float()
-		head_position.y = y.to_float()
-		head_position.z = z.to_float()
+		head_position = Vector3(x.to_float(),y.to_float(), -z.to_float())
 	
 	func set_left_eye_rotation(x: String, y: String, z: String) -> void:
-		left_eye_rotation.x = x.to_float() / 100.0
-		left_eye_rotation.y = y.to_float() / 100.0
-		left_eye_rotation.z = z.to_float() / 100.0
+		left_eye_rotation = Vector3(-x.to_float(),-y.to_float(), z.to_float()) / 100.0
 	
 	func set_right_eye_rotation(x: String, y: String, z: String) -> void:
-		right_eye_rotation.x = x.to_float() / 100.0
-		right_eye_rotation.y = y.to_float() / 100.0
-		right_eye_rotation.z = z.to_float() / 100.0
+		right_eye_rotation = Vector3(-x.to_float(),-y.to_float(), z.to_float()) / 100.0
 var ifm_data := IFacialMocapData.new()
 
 const ConfigKeys := {
@@ -73,7 +65,7 @@ const BLENDSHAPE_DELIMITER := "-"
 
 const PACKET_SIZE: int = 2048
 
-var logger := Logger.new("iFacialMocap")
+var logger := Logger.new(get_name())
 
 var server: UDPServer
 var connection: PacketPeerUDP
@@ -109,6 +101,7 @@ func _receive() -> void:
 		var packet := connection.get_packet()
 		if connection.get_packet_error() != OK:
 			logger.error("Last packet had an error: %d" % connection.get_packet_error())
+			ifm_data.has_data = false
 			connection.close()
 			connection = null
 			return
@@ -159,7 +152,7 @@ func _receive() -> void:
 #-----------------------------------------------------------------------------#
 
 func get_name() -> String:
-	return "iFacialMocap"
+	return tr("I_FACIAL_MOCAP_TRACKER_NAME")
 
 func start_receiver() -> void:
 	var address = AM.cm.get_data(ConfigKeys.ADDRESS)
@@ -212,15 +205,18 @@ func has_data() -> bool:
 	return ifm_data.has_data
 
 func apply(interpolation_data: InterpolationData, model: PuppetTrait) -> void:
-	interpolation_data.bone_translation.target_value = ifm_data.head_position
-	interpolation_data.bone_rotation.target_value = ifm_data.head_rotation
+	interpolation_data.bone_translation.target_value = stored_offsets.translation_offset - ifm_data.head_position
+	interpolation_data.bone_rotation.target_value = stored_offsets.rotation_offset - ifm_data.head_rotation
 	
-	interpolation_data.left_gaze.target_value = ifm_data.left_eye_rotation
-	interpolation_data.right_gaze.target_value = ifm_data.right_eye_rotation
-
-	interpolation_data.left_blink.target_value = 1.0 - ifm_data.blend_shapes.get("eyeBlink_R", 0.0)
-	interpolation_data.right_blink.target_value = 1.0 - ifm_data.blend_shapes.get("eyeBlink_L", 0.0)
+	interpolation_data.left_gaze.target_value = stored_offsets.left_eye_gaze_offset - ifm_data.left_eye_rotation
+	interpolation_data.right_gaze.target_value = stored_offsets.right_eye_gaze_offset - ifm_data.right_eye_rotation
 
 	for key in ifm_data.blend_shapes.keys():
-		for mesh_instance in model.skeleton.get_children():
-			mesh_instance.set("blend_shapes/%s" % key, ifm_data.blend_shapes[key])
+		match key:
+			"eyeBlinkLeft":
+				interpolation_data.right_blink.target_value = 1.0 - ifm_data.blend_shapes[key]
+			"eyeBlinkRight":
+				interpolation_data.left_blink.target_value = 1.0 - ifm_data.blend_shapes[key]
+			_:
+				for mesh_instance in model.skeleton.get_children():
+					mesh_instance.set("blend_shapes/%s" % key, ifm_data.blend_shapes[key])

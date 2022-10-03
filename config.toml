@@ -7,3 +7,4 @@ name = "iFacialMocapTracker"
 tags = ["tracker"]
 entrypoint = "ifm.gd"
 gui = "gui.gd"
+translation-key = "I_FACIAL_MOCAP_EXTENSION"
